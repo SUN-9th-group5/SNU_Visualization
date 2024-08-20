@@ -1,113 +1,84 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "c49a6351-bb46-4a92-a42e-8144642d0c5c",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import streamlit as st\n",
-    "import yfinance as yf\n",
-    "import pandas as pd\n",
-    "import matplotlib.pyplot as plt\n",
-    "\n",
-    "# Streamlit 페이지 설정\n",
-    "st.set_page_config(page_title=\"Stock Analysis\", layout=\"wide\")\n",
-    "\n",
-    "# 제목\n",
-    "st.title(\"Stock Analysis with Dividends Reinvestment\")\n",
-    "\n",
-    "# 사용자 입력\n",
-    "ticker = st.text_input(\"Enter stock ticker\", \"AAPL\")\n",
-    "period = st.selectbox(\"Select period\", [\"1y\", \"5y\", \"10y\"])\n",
-    "\n",
-    "# 데이터 다운로드\n",
-    "@st.cache\n",
-    "def load_data(ticker, period):\n",
-    "    stock = yf.Ticker(ticker)\n",
-    "    stock_data = stock.history(period=period, actions=True)\n",
-    "    return stock_data\n",
-    "\n",
-    "stock_data = load_data(ticker, period)\n",
-    "\n",
-    "# 데이터 처리\n",
-    "stock_data['Dividend'] = stock_data['Dividends'].fillna(0)\n",
-    "stock_data['Price'] = stock_data['Close']\n",
-    "\n",
-    "# 배당금 및 주가 시뮬레이션\n",
-    "initial_shares = 1\n",
-    "shares = initial_shares\n",
-    "price_list = []\n",
-    "dividend_list = []\n",
-    "investment_value = []\n",
-    "\n",
-    "for idx, row in stock_data.iterrows():\n",
-    "    dividends = row['Dividend']\n",
-    "    price = row['Price']\n",
-    "    \n",
-    "    # 재투자된 주식 수\n",
-    "    shares += (dividends / price)\n",
-    "    \n",
-    "    # 주가와 투자 가치 저장\n",
-    "    price_list.append(price)\n",
-    "    dividend_list.append(dividends)\n",
-    "    investment_value.append(shares * price)\n",
-    "\n",
-    "# 데이터 프레임 생성\n",
-    "simulated_data = pd.DataFrame({\n",
-    "    'Date': stock_data.index,\n",
-    "    'Price': price_list,\n",
-    "    'Dividend': dividend_list,\n",
-    "    'Investment Value': investment_value\n",
-    "})\n",
-    "\n",
-    "# 그래프 그리기\n",
-    "fig, ax1 = plt.subplots(figsize=(14, 7))\n",
-    "\n",
-    "# 주가 선 그래프\n",
-    "ax1.plot(simulated_data['Date'], simulated_data['Price'], color='tab:blue', label='Stock Price')\n",
-    "ax1.set_xlabel('Date')\n",
-    "ax1.set_ylabel('Stock Price', color='tab:blue')\n",
-    "ax1.tick_params(axis='y', labelcolor='tab:blue')\n",
-    "\n",
-    "# 재투자 후 투자 가치 선 그래프\n",
-    "ax2 = ax1.twinx()\n",
-    "ax2.plot(simulated_data['Date'], simulated_data['Investment Value'], color='tab:green', linestyle='--', label='Investment Value')\n",
-    "ax2.set_ylabel('Investment Value', color='tab:green')\n",
-    "ax2.tick_params(axis='y', labelcolor='tab:green')\n",
-    "\n",
-    "# 배당금 막대 그래프\n",
-    "fig.tight_layout()\n",
-    "plt.bar(simulated_data['Date'], simulated_data['Dividend'], color='tab:orange', alpha=0.5, label='Dividend')\n",
-    "\n",
-    "# 범례 추가\n",
-    "fig.legend(loc=\"upper left\", bbox_to_anchor=(0.1,0.9))\n",
-    "\n",
-    "# Streamlit에 그래프 표시\n",
-    "st.pyplot(fig)"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python 3 (ipykernel)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.12.4"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import plotly.express as px
+
+# Streamlit 앱 타이틀
+st.title('나만의 월 배당 포트폴리오 구축')
+
+# 포트폴리오를 저장할 리스트
+if 'portfolio' not in st.session_state:
+    st.session_state.portfolio = []
+
+# 주식 검색 및 주가 정보 가져오기
+ticker = st.text_input('주식 티커를 입력하세요 (예: AAPL, MSFT):')
+stock_price = None  # 주가를 저장할 변수 초기화
+
+# 주식 추가 기능
+if ticker:
+    try:
+        stock = yf.Ticker(ticker.upper())
+        dividends = stock.dividends  # 배당금 데이터 가져오기
+        if not dividends.empty:
+            st.write(f'{ticker.upper()} 주식 배당금 데이터가 있습니다.')
+            # 포트폴리오에 추가
+            if ticker.upper() not in [s['ticker'] for s in st.session_state.portfolio]:
+                st.session_state.portfolio.append({'ticker': ticker.upper(), 'dividends': dividends})
+                st.success(f'{ticker.upper()} 주식이 포트폴리오에 추가되었습니다.')
+            else:
+                st.warning(f'{ticker.upper()} 주식이 이미 포트폴리오에 있습니다.')
+        else:
+            st.error(f'{ticker.upper()} 주식에 대한 배당금 데이터가 없습니다.')
+    except Exception as e:
+        st.error(f"데이터를 가져오는 중 오류 발생: {e}")
+
+# 포트폴리오에 추가된 주식 리스트 보여주기
+st.subheader('포트폴리오')
+if st.session_state.portfolio:
+    # 각 주식의 배당금 정보를 모아서 하나의 DataFrame으로 구성
+    portfolio_data = []
+    for stock in st.session_state.portfolio:
+        dividends = stock['dividends']
+        for date, dividend in dividends.items():
+            # 월을 1~12로 변환 (날짜의 월만 추출)
+            month = pd.to_datetime(date).month
+            portfolio_data.append({
+                'ticker': stock['ticker'],
+                'month': month,
+                'dividend': dividend
+            })
+    
+    df = pd.DataFrame(portfolio_data)
+
+    # X축에 12개월을 명시적으로 표시하도록 설정
+    months = [str(i) for i in range(1, 13)]  # 1월부터 12월까지
+    df['month'] = df['month'].astype(str)  # 월을 문자열로 변환하여 시각화에 사용
+
+    # Plotly로 월별 배당금 누적 막대그래프 그리기
+    fig = px.bar(
+        df, 
+        x='month', 
+        y='dividend', 
+        color='ticker',
+        hover_data=['ticker', 'dividend'],
+        labels={'month': '월', 'dividend': '배당금 (₩)'},
+        title='포트폴리오의 월별 배당금 흐름',
+        barmode='stack',  # 막대를 누적하여 표시
+        category_orders={"month": months}  # X축에 1~12까지 표시
+    )
+    
+    st.plotly_chart(fig)
+
+    # 오른쪽에 포트폴리오 목록 표시
+    st.sidebar.subheader('포트폴리오 목록')
+    tickers_in_portfolio = [stock['ticker'] for stock in st.session_state.portfolio]
+    st.sidebar.write(tickers_in_portfolio)
+
+    # 주식 제거 기능 추가
+    stock_to_remove = st.sidebar.selectbox('제거할 주식을 선택하세요:', tickers_in_portfolio)
+    if st.sidebar.button('제거'):
+        st.session_state.portfolio = [stock for stock in st.session_state.portfolio if stock['ticker'] != stock_to_remove]
+        st.sidebar.success(f'{stock_to_remove} 주식이 포트폴리오에서 제거되었습니다.')
+        st.experimental_rerun()  # 변경사항을 즉시 반영하기 위해 페이지를 다시 로드합니다.
+else:
+    st.info('포트폴리오에 주식을 추가하세요.')
