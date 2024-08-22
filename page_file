@@ -1,0 +1,36 @@
+#민범님 작업하실 포맷
+
+# 인트로 페이지 함수
+def intro_page():
+    st.title("Build Wealth Today, Earn Income Tomorrow: The Power of Dividend Investing")
+    # 이미지 표시 (로컬 이미지 파일 경로 또는 URL 사용)
+    st.image("/Users/yej/Downloads/background.png", use_column_width=True)
+    # 버튼
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        if st.button("About Dividend"):
+            st.session_state.page = "dividend"
+    with col2:
+        if st.button("Start"):
+            st.session_state.page = "main"
+
+# 설명 페이지 함수
+def dividend_page():
+   #여기에 코드
+
+# 본 페이지 함수
+def main_page():
+    st.title('나만의 월 배당 포트폴리오 구축')   
+    # 코드!!
+
+
+# 페이지 전환 로직: def dividend_page(): 밑에 위치시키기
+if "page" not in st.session_state:
+    st.session_state.page = "intro"
+
+if st.session_state.page == "intro":
+    intro_page()
+elif st.session_state.page == "main":
+    main_page()
+elif st.session_state.page == "dividend":
+    dividend_page()
