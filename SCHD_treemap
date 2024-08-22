@@ -1,0 +1,29 @@
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# CSV 파일 경로
+CSV_FILE_PATH = 'ticker_data.csv'
+
+# 데이터 로드
+@st.cache
+def load_data():
+    return pd.read_csv(CSV_FILE_PATH)
+
+df = load_data()
+
+# Streamlit 앱 제목
+st.title('SCHD ETF Companies by Sector')
+
+# 데이터 미리보기
+st.subheader('Data Preview')
+st.write(df.head())
+
+# 트리맵 시각화
+fig = px.treemap(df, 
+                 path=['Sector', 'Name'], 
+                 values='MarketCap',
+                 title='SCHD ETF Companies Treemap by Sector')
+
+st.plotly_chart(fig)
