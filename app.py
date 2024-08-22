@@ -8,9 +8,14 @@ from datetime import datetime, timedelta  # datetime 모듈 임포트
 
 
 # 사이드바에서 페이지 선택
-tab1, tab2, tab3 = st.tabs(["포트폴리오 분석", "재투자 분석", "포트폴리오 재투자 금액 차이 분석"])
+tab0, tab1, tab2, tab3 = st.tabs(["메인","포트폴리오 분석", "재투자 분석", "포트폴리오 재투자 금액 차이 분석ㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏ"])
 
 # 페이지 1: 포트폴리오 분석
+with tab0:
+    st.title('Build Wealth Today, Earn Income Tomorrow: The Power of Dividend Investing.')
+    st.image('coin.jpg')
+
+
 
 with tab1:
     st.title('나만의 월 배당 포트폴리오 구축')
