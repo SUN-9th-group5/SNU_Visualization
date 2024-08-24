@@ -51,7 +51,7 @@ def get_stock_data(tickers, start_date, end_date):
     return pd.concat(data.values())
 
 # 데이터 가져오기
-start_date = '2024-01-01'
+start_date = '1984-01-01'
 end_date = '2024-07-01'
 dividend_data = get_stock_data(dividend_stocks, start_date, end_date)
 non_dividend_data = get_stock_data(non_dividend_stocks, start_date, end_date)
