@@ -1,0 +1,275 @@
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# CSV 파일 경로
+CSV_FILE_PATH = 'ticker_data.csv'
+
+# 데이터 로드
+@st.cache
+def load_data():
+    return pd.read_csv(CSV_FILE_PATH)
+
+df = load_data()
+
+# Streamlit 앱 제목
+st.title('SCHD ETF Companies by Sector')
+
+# 데이터 미리보기
+st.subheader('Data Preview')
+st.write(df.head())
+
+# 트리맵 시각화
+fig = px.treemap(df, 
+                 path=['Sector', 'Name'], 
+                 values='MarketCap',
+                 title='SCHD ETF Companies Treemap by Sector')
+
+st.plotly_chart(fig)
+
+#
+#
+
+import pandas as pd
+import yfinance as yf
+import streamlit as st
+import matplotlib.pyplot as plt
+
+# 배당주와 비배당주의 티커 리스트
+dividend_stocks = ['AAPL', 'MSFT', 'KO']  # 예시: 배당주 티커
+non_dividend_stocks = ['GOOGL', 'AMZN', 'TSLA']  # 예시: 비배당주 티커
+
+# 데이터 수집 함수
+def get_stock_data(tickers, start_date, end_date):
+    data = {}
+    for ticker in tickers:
+        stock = yf.Ticker(ticker)
+        df = stock.history(start=start_date, end=end_date, actions=True)
+        df['Ticker'] = ticker
+        data[ticker] = df
+    return pd.concat(data.values())
+
+# 데이터 가져오기
+start_date = '2024-01-01'
+end_date = '2024-07-01'
+dividend_data = get_stock_data(dividend_stocks, start_date, end_date)
+non_dividend_data = get_stock_data(non_dividend_stocks, start_date, end_date)
+
+# 배당금 포함된 데이터 처리
+def calculate_total_return(df):
+    df['Dividend'] = df['Dividends']
+    df['Total Return'] = (df['Close'] + df['Dividend']) / df['Close'].shift(1) - 1
+    return df
+
+dividend_data = calculate_total_return(dividend_data)
+non_dividend_data = calculate_total_return(non_dividend_data)
+
+# Streamlit 애플리케이션
+st.title('Dividend vs Non-Dividend Stock Total Return Comparison')
+
+# 그래프
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# 배당주 라인 플로팅
+for ticker in dividend_stocks:
+    data = dividend_data[dividend_data['Ticker'] == ticker]
+    ax.plot(data.index, data['Total Return'], alpha=0.6, label=f'Dividend {ticker}')
+
+# 비배당주 라인 플로팅
+for ticker in non_dividend_stocks:
+    data = non_dividend_data[non_dividend_data['Ticker'] == ticker]
+    ax.plot(data.index, data['Total Return'], alpha=0.6, label=f'Non-Dividend {ticker}')
+
+# 이상치 제거를 위한 y축 범위 설정
+ax.set_ylim(-0.2, 0.2)
+
+# 그래프 제목 및 레이블 설정
+ax.set_title('Total Return Comparison')
+ax.set_xlabel('Date')
+ax.set_ylabel('Total Return')
+ax.legend()
+
+# 그래프 출력
+st.pyplot(fig)
+
+#
+#
+
+# 배당주와 비배당주의 평균 수익률 계산
+def calculate_group_average(df, tickers):
+    df_group = df[df['Ticker'].isin(tickers)]
+    avg_return = df_group.groupby(df_group.index)['Total Return'].mean()
+    return avg_return
+
+# 평균 수익률 계산
+dividend_avg_return = calculate_group_average(dividend_data, dividend_stocks)
+non_dividend_avg_return = calculate_group_average(non_dividend_data, non_dividend_stocks)
+
+# Streamlit 애플리케이션
+st.title('Average Total Return Comparison: Dividend vs Non-Dividend Stocks')
+
+# 그래프
+fig, ax = plt.subplots(figsize=(10, 6))
+
+# 평균 배당주 수익률 라인 플로팅
+ax.plot(dividend_avg_return.index, dividend_avg_return, alpha=0.6, label='Average Dividend Stocks')
+# 평균 비배당주 수익률 라인 플로팅
+ax.plot(non_dividend_avg_return.index, non_dividend_avg_return, alpha=0.6, label='Average Non-Dividend Stocks')
+
+# y축 범위 설정
+ax.set_ylim(-0.05, 0.05)
+
+# 그래프 제목 및 레이블 설정
+ax.set_title('Average Total Return Comparison')
+ax.set_xlabel('Date')
+ax.set_ylabel('Total Return')
+ax.legend()
+
+# 그래프 출력
+st.pyplot(fig)
+
+
+#
+#
+
+import yfinance as yf
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from datetime import datetime
+
+# Streamlit 설정
+st.title("Coca-Cola Stock Price vs. Inflation Rate Over Time")
+
+# 데이터 수집
+ticker = 'KO'
+start_date = "2010-01-01"
+end_date = datetime.today().strftime('%Y-%m-%d')
+
+# 코카콜라 주가 데이터 가져오기
+ko_data = yf.download(ticker, start=start_date, end=end_date)
+ko_data['Price Change %'] = ko_data['Adj Close'].pct_change() * 100
+
+# 인플레이션율 데이터 (CPI 데이터)
+cpi_data = pd.read_csv('CPIAUCSL.csv', parse_dates=['DATE'], index_col='DATE')
+cpi_data = cpi_data.rename(columns={'VALUE': 'CPIAUCSL'})
+
+# 인플레이션율 계산 (CPI 변화율)
+cpi_data['Inflation Rate %'] = cpi_data['CPIAUCSL'].pct_change() * 100
+
+# 두 데이터셋 병합
+merged_data = pd.merge(ko_data, cpi_data[['Inflation Rate %']], left_index=True, right_index=True, how='inner')
+
+# 색상 변화 (시간에 따른 색상 연해짐 구현)
+color_gradient = px.colors.sequential.Blues  # 색상 팔레트 선택
+merged_data['color'] = pd.cut(merged_data.index.map(pd.Timestamp.toordinal), bins=len(color_gradient), labels=color_gradient)
+
+# 시각화
+fig = px.line(merged_data, x='Inflation Rate %', y='Adj Close', color='color', title="Coca-Cola Stock Price vs. Inflation Rate",
+              labels={"Inflation Rate %": "Inflation Rate (%)", "Adj Close": "Coca-Cola Stock Price (Adjusted Close)"},
+              color_discrete_map='identity')
+
+fig.update_traces(mode='lines+markers', line=dict(width=2))
+
+st.plotly_chart(fig)
+
+#
+#
+
+import yfinance as yf
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from datetime import datetime
+
+# Streamlit 설정
+st.title("Coca-Cola Stock Price and Dividend Yield vs. Inflation Rate Over Time")
+
+# 데이터 수집
+ticker = 'KO'
+start_date = "2010-01-01"
+end_date = datetime.today().strftime('%Y-%m-%d')
+
+# 코카콜라 주가 데이터 가져오기
+ko_data = yf.download(ticker, start=start_date, end=end_date, actions=True)
+ko_data['Price Change %'] = ko_data['Adj Close'].pct_change() * 100
+
+# 배당수익률 계산
+ko_data['Dividend Yield %'] = ko_data['Dividends'] / ko_data['Adj Close'] * 100
+
+# 인플레이션율 데이터 (CPI 데이터)
+cpi_data = pd.read_csv('CPIAUCSL.csv', parse_dates=['DATE'], index_col='DATE')
+cpi_data = cpi_data.rename(columns={'VALUE': 'CPIAUCSL'})
+
+# 인플레이션율 계산 (CPI 변화율)
+cpi_data['Inflation Rate %'] = cpi_data['CPIAUCSL'].pct_change() * 100
+
+# 두 데이터셋 병합
+merged_data = pd.merge(ko_data[['Dividend Yield %']], cpi_data[['Inflation Rate %']], left_index=True, right_index=True, how='inner')
+
+# 색상 변화 (시간에 따른 색상 연해짐 구현)
+color_gradient = px.colors.sequential.Blues  # 색상 팔레트 선택
+merged_data['color'] = pd.cut(merged_data.index.map(pd.Timestamp.toordinal), bins=len(color_gradient), labels=color_gradient)
+
+# 시각화
+fig = px.line(merged_data, x='Inflation Rate %', y='Dividend Yield %', color='color', title="Coca-Cola Dividend Yield vs. Inflation Rate",
+              labels={"Inflation Rate %": "Inflation Rate (%)", "Dividend Yield %": "Dividend Yield (%)"},
+              color_discrete_map='identity')
+
+fig.update_traces(mode='lines+markers', line=dict(width=2))
+
+st.plotly_chart(fig)
+
+#
+#
+
+import yfinance as yf
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+from datetime import datetime
+from pandas_datareader import data as pdr
+
+# Streamlit 설정
+st.title("Dividend vs. Non-Dividend Stocks During Low Inflation Periods")
+
+# 데이터 수집
+dividend_ticker = 'KO'  # 배당주
+non_dividend_ticker = 'AAPL'  # 비배당주
+start_date = "2010-01-01"
+end_date = datetime.today().strftime('%Y-%m-%d')
+
+# 코카콜라와 애플 주가 데이터 가져오기
+dividend_data = yf.download(dividend_ticker, start=start_date, end=end_date)
+non_dividend_data = yf.download(non_dividend_ticker, start=start_date, end=end_date)
+
+# 비율 변동 계산
+dividend_data['Price Change %'] = dividend_data['Adj Close'].pct_change() * 100
+non_dividend_data['Price Change %'] = non_dividend_data['Adj Close'].pct_change() * 100
+
+# 인플레이션 데이터 가져오기 (FRED의 CPIAUCSL)
+inflation_data = pdr.get_data_fred('CPIAUCSL', start=start_date, end=end_date)
+
+# 인플레이션율 계산 (전년 동기 대비 변화율)
+inflation_data['Inflation Rate %'] = inflation_data['CPIAUCSL'].pct_change(periods=12) * 100
+
+# 주가 데이터와 인플레이션 데이터 병합
+merged_dividend_data = pd.merge(dividend_data, inflation_data, left_index=True, right_index=True, how='inner')
+merged_non_dividend_data = pd.merge(non_dividend_data, inflation_data, left_index=True, right_index=True, how='inner')
+
+# 저인플레이션기 정의 (예: 인플레이션 1% 이하)
+low_inflation_periods = merged_dividend_data[merged_dividend_data['Inflation Rate %'] <= 1]
+
+# 배당주와 비배당주 데이터 비교 시각화
+fig = px.line(title="Dividend vs. Non-Dividend Stocks During Low Inflation Periods")
+
+# 배당주 (코카콜라) 주가 추가
+fig.add_scatter(x=low_inflation_periods.index, y=low_inflation_periods['Adj Close'], mode='lines', name='Coca-Cola (KO)', line=dict(color='blue'))
+
+# 비배당주 (애플) 주가 추가
+fig.add_scatter(x=merged_non_dividend_data.loc[low_inflation_periods.index].index, y=merged_non_dividend_data.loc[low_inflation_periods.index]['Adj Close'], mode='lines', name='Apple (AAPL)', line=dict(color='red'))
+
+fig.update_layout(xaxis_title="Date", yaxis_title="Stock Price (Adjusted Close)", legend_title="Stock Ticker")
+
+st.plotly_chart(fig)
