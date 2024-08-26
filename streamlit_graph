@@ -1,3 +1,5 @@
+###################################트리맵#############################################
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -27,15 +29,13 @@ fig = px.treemap(df,
 
 st.plotly_chart(fig)
 
-#
-#
+###################################6개 비교 그래프#############################################
 
 import pandas as pd
 import yfinance as yf
 import streamlit as st
-import matplotlib.pyplot as plt
+import plotly.express as px
 
-# 배당주와 비배당주의 티커 리스트
 dividend_stocks = ['AAPL', 'MSFT', 'KO']  # 예시: 배당주 티커
 non_dividend_stocks = ['GOOGL', 'AMZN', 'TSLA']  # 예시: 비배당주 티커
 
@@ -61,39 +61,31 @@ def calculate_total_return(df):
     df['Total Return'] = (df['Close'] + df['Dividend']) / df['Close'].shift(1) - 1
     return df
 
+# 배당주와 비배당주 데이터를 하나의 데이터프레임으로 결합
 dividend_data = calculate_total_return(dividend_data)
 non_dividend_data = calculate_total_return(non_dividend_data)
+combined_data = pd.concat([dividend_data, non_dividend_data])
 
 # Streamlit 애플리케이션
-st.title('Dividend vs Non-Dividend Stock Total Return Comparison')
+st.subheader('Dividend vs Non-Dividend Stock Total Return Comparison')
 
-# 그래프
-fig, ax = plt.subplots(figsize=(10, 6))
+# Plotly 그래프 생성
+fig = px.line(
+    combined_data, 
+    x=combined_data.index, 
+    y='Total Return', 
+    color='Ticker', 
+    labels={'Total Return': 'Total Return', 'index': 'Date'}, 
+    title='Total Return Comparison'
+)
 
-# 배당주 라인 플로팅
-for ticker in dividend_stocks:
-    data = dividend_data[dividend_data['Ticker'] == ticker]
-    ax.plot(data.index, data['Total Return'], alpha=0.6, label=f'Dividend {ticker}')
+fig.update_traces(opacity=0.6) # 선의 투명도 설정
+fig.update_yaxes(range=[-0.15, 0.15])
+st.plotly_chart(fig)
 
-# 비배당주 라인 플로팅
-for ticker in non_dividend_stocks:
-    data = non_dividend_data[non_dividend_data['Ticker'] == ticker]
-    ax.plot(data.index, data['Total Return'], alpha=0.6, label=f'Non-Dividend {ticker}')
-
-# 이상치 제거를 위한 y축 범위 설정
-ax.set_ylim(-0.15, 0.15)
-
-# 그래프 제목 및 레이블 설정
-ax.set_title('Total Return Comparison')
-ax.set_xlabel('Date')
-ax.set_ylabel('Total Return')
-ax.legend()
-
-# 그래프 출력
-st.pyplot(fig)
-
-#
-#
+#######################################3개씩 평균낸 비교 그래프#########################################
+#위와 이어짐
+import plotly.graph_objs as go
 
 # 배당주와 비배당주의 평균 수익률 계산
 def calculate_group_average(df, tickers):
@@ -104,33 +96,135 @@ def calculate_group_average(df, tickers):
 # 평균 수익률 계산
 dividend_avg_return = calculate_group_average(dividend_data, dividend_stocks)
 non_dividend_avg_return = calculate_group_average(non_dividend_data, non_dividend_stocks)
+combined_data2 = pd.concat([dividend_avg_return, non_dividend_avg_return])
 
 # Streamlit 애플리케이션
-st.title('Average Total Return Comparison: Dividend vs Non-Dividend Stocks')
+st.subheader('Average Total Return Comparison: Dividend vs Non-Dividend Stocks')
+fig = go.Figure()
 
-# 그래프
-fig, ax = plt.subplots(figsize=(10, 6))
+# 배당주 평균 수익률 선 추가
+fig.add_trace(go.Scatter(
+    x=dividend_avg_return.index, 
+    y=dividend_avg_return, 
+    mode='lines', 
+    name='Dividend Stocks',
+    line=dict(color='blue', width=2)  # 선 색상 및 너비 지정
+))
 
-# 평균 배당주 수익률 라인 플로팅
-ax.plot(dividend_avg_return.index, dividend_avg_return, alpha=0.6, label='Average Dividend Stocks')
-# 평균 비배당주 수익률 라인 플로팅
-ax.plot(non_dividend_avg_return.index, non_dividend_avg_return, alpha=0.6, label='Average Non-Dividend Stocks')
+# 비배당주 평균 수익률 선 추가
+fig.add_trace(go.Scatter(
+    x=non_dividend_avg_return.index, 
+    y=non_dividend_avg_return, 
+    mode='lines', 
+    name='Non-Dividend Stocks',
+    line=dict(color='red', width=2)  # 선 색상 및 너비 지정
+))
 
-# y축 범위 설정
-ax.set_ylim(-0.05, 0.05)
-
+fig.update_traces(opacity=0.6)  # 선의 투명도 설정
+fig.update_yaxes(range=[-0.05, 0.05])
 # 그래프 제목 및 레이블 설정
-ax.set_title('Average Total Return Comparison')
-ax.set_xlabel('Date')
-ax.set_ylabel('Total Return')
-ax.legend()
+fig.update_layout(
+    title='Average Total Return Comparison: Dividend vs Non-Dividend Stocks',
+    xaxis_title='Date',
+    yaxis_title='Total Return'
+)
+st.plotly_chart(fig)
 
-# 그래프 출력
-st.pyplot(fig)
+####################################ETF별 비교 시각화 4가지############################################
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# CSV 파일 읽기
+df = pd.read_csv("/Users/yej/Downloads/etf_companies_info.csv")
+
+# Group data by ETF
+etf_summary = df.groupby('ETF').agg({
+    'AUM': 'mean',
+    'Dividend Yield': 'mean',
+    #'Expense Ratio': 'mean',
+    'YTD Return': 'mean',
+    '5-Year Avg Return': 'mean'
+}).reset_index()
+
+# Start Streamlit application
+st.title('ETF Performance Comparison Visualization')
+# Visualize ETF performance data
+st.subheader('Average AUM, Dividend Yield, Expense Ratio, and Returns by ETF')
+
+# AUM Visualization
+st.subheader('Average AUM by ETF')
+fig = px.bar(etf_summary, x='ETF', y='AUM', title='Average AUM by ETF', labels={'AUM': 'Average AUM ($)', 'ETF': 'ETF'}, color_discrete_sequence=['skyblue'])
+# Show plotly chart in Streamlit
+st.plotly_chart(fig)
+
+# Dividend Yield Visualization
+st.subheader('Average Dividend Yield by ETF')
+fig = px.bar(etf_summary, x='ETF', y='Dividend Yield', title='Average Dividend Yield by ETF', labels={'Dividend Yield':'Dividend Yield' , 'ETF': 'ETF'}, color_discrete_sequence=['#e377c2'])
+st.plotly_chart(fig)
+
+# YTD Return Visualization
+st.subheader('Average YTD Return by ETF')
+fig = px.bar(etf_summary, x='ETF', y='YTD Return', title='Average YTD Return by ETF', labels={'YTD Return': 'YTD Return', 'ETF': 'ETF'}, color_discrete_sequence=['#2ca02c'])
+st.plotly_chart(fig)
+
+# 5-Year Average Return Visualization
+st.subheader('Average 5-Year Avg Return by ETF')
+fig = px.bar(etf_summary, x='ETF', y='5-Year Avg Return', title='Average 5-Year Avg Return by ETF', labels={'5-Year Avg Return': '5-Year Avg Return', 'ETF': 'ETF'}, color_discrete_sequence=['#9467bd'])
+st.plotly_chart(fig)
+
+######################################축 선택 그래프##########################################
+
+import streamlit as st
+import plotly.express as px
+import pandas as pd
+
+# CSV 파일 읽기
+df = pd.read_csv("/Users/yej/Downloads/etf_companies_info.csv")
+
+# Plot settings
+colors = {'VYM': 'blue', 'VIG': 'green', 'SCHD': 'red'}
+
+# Streamlit 애플리케이션 레이아웃 정의
+st.title('ETF Performance Scatter Plot Analysis')
+
+# X축 선택 옵션
+x_axis = st.selectbox(
+    "Select X-axis:",
+    options=['AUM', 'Dividend Yield', 'YTD Return', '5-Year Avg Return'],
+    index=0
+)
+
+# Y축 선택 옵션
+y_axis = st.selectbox(
+    "Select Y-axis:",
+    options=['AUM', 'Dividend Yield', 'YTD Return', '5-Year Avg Return'],
+    index=1
+)
+
+# Scatter plot 생성
+fig = px.scatter(
+    df, 
+    x=x_axis, 
+    y=y_axis, 
+    color='ETF',
+    color_discrete_map=colors,
+    hover_name='Company Name',  # Hover 시 종목 이름 표시
+    labels={
+        'AUM': 'AUM ($)',
+        'Dividend Yield': 'Dividend Yield (%)',
+        'Expense Ratio': 'Expense Ratio (%)',
+        'YTD Return': 'YTD Return (%)',
+        '5-Year Avg Return': '5-Year Avg Return (%)'
+    }
+)
+
+fig.update_layout(title=f'Scatter Plot of {x_axis} vs {y_axis} by ETF')
+st.plotly_chart(fig)
 
 
-#
-#
+##################################시간의 흐름에 따른 그래프#########################################
 
 import yfinance as yf
 import pandas as pd
@@ -172,9 +266,7 @@ fig = px.line(merged_data, x='Inflation Rate %', y='Adj Close', color='color', t
 fig.update_traces(mode='lines+markers', line=dict(width=2))
 st.plotly_chart(fig)
 
-
-#
-#
+##################################배당주 비배당주 주가 비교#########################################
 
 import yfinance as yf
 import pandas as pd
@@ -187,8 +279,8 @@ from pandas_datareader import data as pdr
 st.title("Dividend vs. Non-Dividend Stocks During Low Inflation Periods")
 
 # 데이터 수집
-dividend_ticker = 'AAPL'  # 배당주
-non_dividend_ticker = 'GOOGL'  # 비배당주
+dividend_ticker = 'MSFT'  # 배당주
+non_dividend_ticker = 'TSLA'  # 비배당주
 start_date = "2010-01-01"
 end_date = datetime.today().strftime('%Y-%m-%d')
 
@@ -216,84 +308,9 @@ low_inflation_periods = merged_dividend_data[merged_dividend_data['Inflation Rat
 # 배당주와 비배당주 데이터 비교 시각화
 fig = px.line(title="Dividend vs. Non-Dividend Stocks During Low Inflation Periods")
 
-# 배당주 (코카콜라) 주가 추가
-fig.add_scatter(x=low_inflation_periods.index, y=low_inflation_periods['Adj Close'], mode='lines', name='APPLE (AAPL)', line=dict(color='blue'))
-
-# 비배당주 (애플) 주가 추가
-fig.add_scatter(x=merged_non_dividend_data.loc[low_inflation_periods.index].index, y=merged_non_dividend_data.loc[low_inflation_periods.index]['Adj Close'], mode='lines', name='GOOGLE (GOOGL)', line=dict(color='red'))
-
+# 배당주 주가 추가
+fig.add_scatter(x=low_inflation_periods.index, y=low_inflation_periods['Adj Close'], mode='lines', name='MSFT (div)', line=dict(color='blue'))
+# 비배당주 주가 추가
+fig.add_scatter(x=merged_non_dividend_data.loc[low_inflation_periods.index].index, y=merged_non_dividend_data.loc[low_inflation_periods.index]['Adj Close'], mode='lines', name='TSLA (non-div)', line=dict(color='red'))
 fig.update_layout(xaxis_title="Date", yaxis_title="Stock Price (Adjusted Close)", legend_title="Stock Ticker")
-
 st.plotly_chart(fig)
-
-#
-#
-
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# CSV 파일 읽기
-df = pd.read_csv("/Users/yej/Downloads/etf_companies_info.csv")
-
-# Group data by ETF
-etf_summary = df.groupby('ETF').agg({
-    'AUM': 'mean',
-    'Dividend Yield': 'mean',
-    'Expense Ratio': 'mean',
-    'YTD Return': 'mean',
-    '5-Year Avg Return': 'mean'
-}).reset_index()
-
-# Start Streamlit application
-st.title('ETF Performance Comparison Visualization')
-
-# Visualize ETF performance data
-st.subheader('Average AUM, Dividend Yield, Expense Ratio, and Returns by ETF')
-
-# AUM Visualization
-st.subheader('Average AUM by ETF')
-fig, ax = plt.subplots()
-ax.bar(etf_summary['ETF'], etf_summary['AUM'], color='skyblue')
-ax.set_ylabel('Average AUM ($)')
-ax.set_xlabel('ETF')
-ax.set_title('Average AUM by ETF')
-st.pyplot(fig)
-
-# Dividend Yield Visualization
-st.subheader('Average Dividend Yield by ETF')
-fig, ax = plt.subplots()
-ax.bar(etf_summary['ETF'], etf_summary['Dividend Yield'], color='lightgreen')
-ax.set_ylabel('Average Dividend Yield (%)')
-ax.set_xlabel('ETF')
-ax.set_title('Average Dividend Yield by ETF')
-st.pyplot(fig)
-
-# Expense Ratio Visualization
-st.subheader('Average Expense Ratio by ETF')
-fig, ax = plt.subplots()
-ax.bar(etf_summary['ETF'], etf_summary['Expense Ratio'], color='coral')
-ax.set_ylabel('Average Expense Ratio (%)')
-ax.set_xlabel('ETF')
-ax.set_title('Average Expense Ratio by ETF')
-st.pyplot(fig)
-
-# YTD Return Visualization
-st.subheader('Average YTD Return by ETF')
-fig, ax = plt.subplots()
-ax.bar(etf_summary['ETF'], etf_summary['YTD Return'], color='gold')
-ax.set_ylabel('Average YTD Return (%)')
-ax.set_xlabel('ETF')
-ax.set_title('Average YTD Return by ETF')
-st.pyplot(fig)
-
-# 5-Year Average Return Visualization
-st.subheader('Average 5-Year Avg Return by ETF')
-fig, ax = plt.subplots()
-ax.bar(etf_summary['ETF'], etf_summary['5-Year Avg Return'], color='steelblue')
-ax.set_ylabel('Average 5-Year Avg Return (%)')
-ax.set_xlabel('ETF')
-ax.set_title('Average 5-Year Avg Return by ETF')
-st.pyplot(fig)
-
-
